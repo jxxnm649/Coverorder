@@ -158,9 +158,10 @@
       return;
     }
     sessionStorage.setItem("cover_model", selectedModel);
+    sessionStorage.removeItem("cover_category");
     sessionStorage.removeItem("cover_type");
     sessionStorage.removeItem("cover_product_id");
-    window.location.href = "covertype.html";
+    window.location.href = "covercategory.html";
   });
 </script>
 </body>

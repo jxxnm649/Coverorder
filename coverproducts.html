@@ -43,7 +43,7 @@
 <body>
 <div class="app-container">
   <div class="header">
-    <a href="covertype.html" style="font-size: 20px;text-decoration:none;color:inherit;">&#8592;</a><h2>Products Found</h2>
+    <a href="#" id="backLink" style="font-size: 20px;text-decoration:none;color:inherit;">&#8592;</a><h2>Products Found</h2>
   </div>
 
   <div class="selection-badge">
@@ -54,11 +54,11 @@
         <div style="font-size:11px; color:#666;" id="badgeType"></div>
       </div>
     </div>
-    <a href="covertype.html" class="change-btn" style="text-decoration:none;">Change</a>
+    <a href="#" id="changeLink" class="change-btn" style="text-decoration:none;">Change</a>
   </div>
 
   <div class="title-section">
-    <h1 id="listTitle">Best covers for you</h1>
+    <h1 id="listTitle">Best products for you</h1>
     <p id="listSub"></p>
   </div>
 
@@ -72,16 +72,29 @@
   import { db } from "./firebase.js";
   import { collection, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
+  const CATEGORY_KEYWORDS = {
+    "Covers":           ["cover", "case"],
+    "Tempered Glass":   ["tempered", "screen guard", "screen protector"],
+    "Camera Glass":     ["camera glass", "camera lens", "camera protector"],
+    "Unique Products":  ["unique"],
+    "Mobile Battery":   ["battery"],
+    "Customized Cover": ["customized", "custom cover", "customised"]
+  };
+
   const brand = sessionStorage.getItem("cover_brand");
-  const series = sessionStorage.getItem("cover_series");
   const model = sessionStorage.getItem("cover_model");
-  const type = sessionStorage.getItem("cover_type");
-  if (!brand || !model || !type) window.location.href = "coverbrand.html";
+  const category = sessionStorage.getItem("cover_category");
+  const type = sessionStorage.getItem("cover_type"); // only set when category === "Covers"
+  if (!brand || !model || !category) window.location.href = "coverbrand.html";
+
+  const backTarget = category === "Covers" ? "covertype.html" : "covercategory.html";
+  document.getElementById("backLink").href = backTarget;
+  document.getElementById("changeLink").href = backTarget;
 
   const phoneLabel = `${brand} ${model}`;
   document.getElementById("badgeModel").textContent = phoneLabel;
-  document.getElementById("badgeType").textContent = `${type}`;
-  document.getElementById("listTitle").textContent = `Best covers for your ${phoneLabel}`;
+  document.getElementById("badgeType").textContent = type ? `${category} • ${type}` : category;
+  document.getElementById("listTitle").textContent = `Best ${category.toLowerCase()} for your ${phoneLabel}`;
 
   function escapeHtml(str) {
     return String(str ?? "").replace(/[&<>"']/g, m => ({
@@ -92,43 +105,51 @@
   async function load() {
     const listEl = document.getElementById("productList");
 
-    let allCovers = [];
+    let categoryProducts = [];
     try {
       const snap = await getDocs(collection(db, "products"));
-      allCovers = snap.docs
+      const keywords = CATEGORY_KEYWORDS[category] || [];
+      categoryProducts = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
-        .filter(p => (p.category || "").toLowerCase().includes("cover"));
+        .filter(p => {
+          const c = (p.category || "").toLowerCase();
+          return keywords.some(k => c.includes(k));
+        });
     } catch (error) {
       console.error(error);
     }
 
-    let matched;
-    if (type === "Flip Cover") {
-      matched = allCovers.filter(p => (p.productName || "").toLowerCase().includes("flip"));
-    } else if (type === "Bumper Case") {
-      matched = allCovers.filter(p => (p.productName || "").toLowerCase().includes("bumper"));
-    } else {
-      matched = allCovers.filter(p => {
-        const name = (p.productName || "").toLowerCase();
-        return !name.includes("flip") && !name.includes("bumper");
-      });
-    }
-
-    // If the narrow type has no matches, fall back to showing all
-    // covers rather than a dead end.
+    let matched = categoryProducts;
     let usedFallback = false;
-    if (!matched.length && allCovers.length) {
-      matched = allCovers;
-      usedFallback = true;
+
+    // Only "Covers" has a narrower Type filter to apply.
+    if (category === "Covers" && type) {
+      const TYPE_KEYWORDS = { "Flip Cover": "flip", "Bumper Case": "bumper", "Silicone Case": "silicone", "Leather Case": "leather" };
+      const OTHER_KEYWORDS = Object.values(TYPE_KEYWORDS);
+
+      if (TYPE_KEYWORDS[type]) {
+        matched = categoryProducts.filter(p => (p.productName || "").toLowerCase().includes(TYPE_KEYWORDS[type]));
+      } else {
+        // "Back Cover" — catch-all: not specifically another type.
+        matched = categoryProducts.filter(p => {
+          const name = (p.productName || "").toLowerCase();
+          return !OTHER_KEYWORDS.some(k => name.includes(k));
+        });
+      }
+
+      if (!matched.length && categoryProducts.length) {
+        matched = categoryProducts;
+        usedFallback = true;
+      }
     }
 
     document.getElementById("listSub").textContent =
       usedFallback
-        ? `${matched.length} product${matched.length === 1 ? "" : "s"} found (showing all covers)`
+        ? `${matched.length} product${matched.length === 1 ? "" : "s"} found (showing all ${category.toLowerCase()})`
         : `${matched.length} product${matched.length === 1 ? "" : "s"} found`;
 
     if (!matched.length) {
-      listEl.innerHTML = `<p style="color:#666;font-size:13px;">No covers in stock right now — please check back soon.</p>`;
+      listEl.innerHTML = `<p style="color:#666;font-size:13px;">No products in this category right now — please check back soon.</p>`;
       return;
     }
 

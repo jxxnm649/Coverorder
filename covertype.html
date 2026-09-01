@@ -36,20 +36,22 @@
   .list-item.selected .radio-circle::after { content: '✓'; color: white; font-size: 14px; font-weight: bold; }
 
   .bottom-bar { position: fixed; bottom: 0; width: 100%; max-width: 414px; background: #fff; padding: 15px 20px; box-sizing: border-box; display: flex; gap: 15px; border-top: 1px solid #eee; }
-  .btn-next { background: #006b44; color: white; border: none; padding: 16px; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; display: flex; justify-content: space-between; align-items: center; }
+  .btn-back { background: white; color: #d32f2f; border: 1px solid #d32f2f; padding: 15px; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; flex: 1; text-align: center; }
+  .btn-next { background: #006b44; color: white; border: none; padding: 16px; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; flex: 1; display: flex; justify-content: space-between; align-items: center; }
 </style>
 </head>
 <body>
 <div class="app-container">
   <div class="header">
-    <a href="covermodel.html" style="font-size: 20px;text-decoration:none;color:inherit;">&#8592;</a><h2>Find Your Product</h2>
+    <a href="covercategory.html" style="font-size: 20px;text-decoration:none;color:inherit;">&#8592;</a><h2>Find Your Product</h2>
   </div>
 
   <div class="progress-bar">
     <div class="step completed"><div class="circle">&#10003;</div>Brand</div>
     <div class="step completed"><div class="circle">&#10003;</div>Series</div>
     <div class="step completed"><div class="circle">&#10003;</div>Model</div>
-    <div class="step active"><div class="circle">4</div>Type</div>
+    <div class="step completed"><div class="circle">&#10003;</div>Category</div>
+    <div class="step active"><div class="circle">5</div>Type</div>
   </div>
 
   <div class="title-section">
@@ -62,6 +64,7 @@
   </div>
 
   <div class="bottom-bar">
+    <a href="covercategory.html" class="btn-back" style="text-decoration:none;text-align:center;">&larr; Back</a>
     <button class="btn-next" id="nextBtn"><span>Next</span> <span>&rarr;</span></button>
   </div>
 </div>
@@ -72,33 +75,40 @@
 
   const brand = sessionStorage.getItem("cover_brand");
   const model = sessionStorage.getItem("cover_model");
+  const category = sessionStorage.getItem("cover_category");
   if (!brand || !model) window.location.href = "coverbrand.html";
 
+  // This Type step only makes sense for Covers — every other
+  // category skips straight to the product list.
+  if (category && category !== "Covers") {
+    window.location.href = "coverproducts.html";
+  }
+
   const TYPES = [
-    { key: "Back Cover",  icon: "📱", sub: "Protect your phone in style",        keywords: ["back cover", "case"] },
-    { key: "Flip Cover",  icon: "📘", sub: "Full body protection with front flap", keywords: ["flip"] },
-    { key: "Bumper Case", icon: "🔲", sub: "Shockproof protection for edges",     keywords: ["bumper"] }
+    { key: "Back Cover",   icon: "📱", sub: "Protect your phone in style",          keywords: [] },
+    { key: "Flip Cover",   icon: "📘", sub: "Full body protection with front flap", keywords: ["flip"] },
+    { key: "Bumper Case",  icon: "🔲", sub: "Shockproof protection for edges",      keywords: ["bumper"] },
+    { key: "Silicone Case",icon: "🟪", sub: "Soft, smooth & comfortable grip",      keywords: ["silicone"] },
+    { key: "Leather Case", icon: "🟫", sub: "Premium leather, premium look",        keywords: ["leather"] }
   ];
+
+  const OTHER_KEYWORDS = ["flip", "bumper", "silicone", "leather"];
 
   let selectedType = sessionStorage.getItem("cover_type") || null;
   let allCovers = [];
 
   function countFor(type) {
-    if (!type.keywords.some(k => k !== "case")) return allCovers.length;
-    const matched = allCovers.filter(p => {
+    if (type.key === "Back Cover") {
+      // Catch-all: anything not specifically flip/bumper/silicone/leather.
+      return allCovers.filter(p => {
+        const name = (p.productName || "").toLowerCase();
+        return !OTHER_KEYWORDS.some(k => name.includes(k));
+      }).length;
+    }
+    return allCovers.filter(p => {
       const name = (p.productName || "").toLowerCase();
       return type.keywords.some(k => name.includes(k));
-    });
-    // "Back Cover" is the catch-all — anything not specifically
-    // flip/bumper counts as a back cover.
-    if (type.key === "Back Cover") {
-      const notOther = allCovers.filter(p => {
-        const name = (p.productName || "").toLowerCase();
-        return !name.includes("flip") && !name.includes("bumper");
-      });
-      return notOther.length;
-    }
-    return matched.length;
+    }).length;
   }
 
   function render() {
