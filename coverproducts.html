@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product List</title>
+<style>
+  body { font-family: 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f4f6f8; display: flex; justify-content: center; }
+  .app-container { width: 100%; max-width: 414px; background: #ffffff; min-height: 100vh; position: relative; padding-bottom: 80px; }
+  
+  .header { display: flex; align-items: center; padding: 20px; }
+  .header h2 { margin: 0; font-size: 18px; margin-left: 20px; font-weight: 600; }
+  
+  /* Selection Summary Badge */
+  .selection-badge { margin: 0 20px 15px 20px; padding: 12px 15px; background: #f9f9f9; border-radius: 10px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+  .badge-left { display: flex; align-items: center; gap: 10px; }
+  .badge-left img { width: 35px; height: 35px; object-fit: cover; border-radius: 5px; }
+  .change-btn { color: #006b44; font-weight: bold; cursor: pointer; }
+
+  .title-section { padding: 0 20px 10px 20px; }
+  .title-section h1 { margin: 0; font-size: 20px; color: #111; font-weight: 700; }
+  .title-section p { margin: 3px 0 0 0; color: #666; font-size: 13px; }
+
+  /* Product Cards List */
+  .product-list { padding: 0 20px; }
+  .product-card { display: flex; align-items: center; padding: 12px; border: 1px solid #eee; border-radius: 12px; margin-bottom: 12px; background: #fff; position: relative; }
+  .product-img { width: 60px; height: 60px; background: #eee; border-radius: 8px; margin-right: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+  .product-details { flex-grow: 1; }
+  .product-details h4 { margin: 0; font-size: 14px; color: #111; font-weight: 600; }
+  .product-details p { margin: 2px 0 6px 0; font-size: 12px; color: #666; }
+  .price-row { display: flex; align-items: center; gap: 8px; }
+  .current-price { font-size: 15px; font-weight: bold; color: #111; }
+  .old-price { font-size: 12px; color: #999; text-decoration: line-through; }
+  .discount { font-size: 10px; background: #e6f4ea; color: #006b44; padding: 2px 5px; border-radius: 4px; font-weight: bold; }
+  
+  .btn-order { background: #006b44; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; margin-top: 5px; display: inline-block; }
+  .fav-icon { position: absolute; top: 12px; right: 12px; font-size: 16px; color: #ccc; cursor: pointer; }
+
+  .bottom-bar { position: fixed; bottom: 0; width: 100%; max-width: 414px; background: #fff; padding: 15px 20px; box-sizing: border-box; border-top: 1px solid #eee; }
+  .btn-next { background: #006b44; color: white; border: none; padding: 16px; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; text-align: center; }
+</style>
+</head>
+<body>
+<div class="app-container">
+  <div class="header">
+    <a href="covertype.html" style="font-size: 20px;text-decoration:none;color:inherit;">&#8592;</a><h2>Products Found</h2>
+  </div>
+
+  <div class="selection-badge">
+    <div class="badge-left">
+      <div style="background:#222; color:#fff; width:35px; height:35px; border-radius:6px; display:flex; align-items:center; justify-content:center;">📱</div>
+      <div>
+        <div style="font-weight:bold; color:#111;" id="badgeModel"></div>
+        <div style="font-size:11px; color:#666;" id="badgeType"></div>
+      </div>
+    </div>
+    <a href="covertype.html" class="change-btn" style="text-decoration:none;">Change</a>
+  </div>
+
+  <div class="title-section">
+    <h1 id="listTitle">Best covers for you</h1>
+    <p id="listSub"></p>
+  </div>
+
+  <div class="product-list" id="productList">
+    <p style="color:#666;font-size:13px;">Loading…</p>
+  </div>
+
+</div>
+
+<script type="module">
+  import { db } from "./firebase.js";
+  import { collection, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+  const brand = sessionStorage.getItem("cover_brand");
+  const series = sessionStorage.getItem("cover_series");
+  const model = sessionStorage.getItem("cover_model");
+  const type = sessionStorage.getItem("cover_type");
+  if (!brand || !model || !type) window.location.href = "coverbrand.html";
+
+  const phoneLabel = `${brand} ${model}`;
+  document.getElementById("badgeModel").textContent = phoneLabel;
+  document.getElementById("badgeType").textContent = `${type}`;
+  document.getElementById("listTitle").textContent = `Best covers for your ${phoneLabel}`;
+
+  function escapeHtml(str) {
+    return String(str ?? "").replace(/[&<>"']/g, m => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    })[m]);
+  }
+
+  async function load() {
+    const listEl = document.getElementById("productList");
+
+    let allCovers = [];
+    try {
+      const snap = await getDocs(collection(db, "products"));
+      allCovers = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(p => (p.category || "").toLowerCase().includes("cover"));
+    } catch (error) {
+      console.error(error);
+    }
+
+    let matched;
+    if (type === "Flip Cover") {
+      matched = allCovers.filter(p => (p.productName || "").toLowerCase().includes("flip"));
+    } else if (type === "Bumper Case") {
+      matched = allCovers.filter(p => (p.productName || "").toLowerCase().includes("bumper"));
+    } else {
+      matched = allCovers.filter(p => {
+        const name = (p.productName || "").toLowerCase();
+        return !name.includes("flip") && !name.includes("bumper");
+      });
+    }
+
+    // If the narrow type has no matches, fall back to showing all
+    // covers rather than a dead end.
+    let usedFallback = false;
+    if (!matched.length && allCovers.length) {
+      matched = allCovers;
+      usedFallback = true;
+    }
+
+    document.getElementById("listSub").textContent =
+      usedFallback
+        ? `${matched.length} product${matched.length === 1 ? "" : "s"} found (showing all covers)`
+        : `${matched.length} product${matched.length === 1 ? "" : "s"} found`;
+
+    if (!matched.length) {
+      listEl.innerHTML = `<p style="color:#666;font-size:13px;">No covers in stock right now — please check back soon.</p>`;
+      return;
+    }
+
+    listEl.innerHTML = matched.map(p => {
+      const hasDiscount = p.mrp && Number(p.mrp) > Number(p.price);
+      const offPct = hasDiscount ? Math.round((1 - Number(p.price) / Number(p.mrp)) * 100) : 0;
+
+      return `
+        <div class="product-card">
+          <div class="fav-icon">&#9825;</div>
+          ${p.image
+            ? `<img src="${escapeHtml(p.image)}" class="product-img" style="object-fit:cover;">`
+            : `<div class="product-img">🛡️</div>`
+          }
+          <div class="product-details">
+            <h4>${escapeHtml(p.productName || "Product")}</h4>
+            <p>For ${escapeHtml(phoneLabel)}</p>
+            <div class="price-row">
+              <span class="current-price">₹${p.price ?? 0}</span>
+              ${hasDiscount ? `<span class="old-price">₹${p.mrp}</span><span class="discount">${offPct}% OFF</span>` : ""}
+            </div>
+            <button class="btn-order" data-id="${p.id}">Place Order Now</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+  load();
+
+  document.getElementById("productList").addEventListener("click", (e) => {
+    const btn = e.target.closest(".btn-order");
+    if (!btn) return;
+    sessionStorage.setItem("cover_product_id", btn.dataset.id);
+    window.location.href = "covercolor.html";
+  });
+</script>
+</body>
+</html>

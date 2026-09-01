@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Choose Color</title>
+<style>
+  body { font-family: 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f4f6f8; display: flex; justify-content: center; }
+  .app-container { width: 100%; max-width: 414px; background: #ffffff; min-height: 100vh; position: relative; padding-bottom: 80px; }
+  
+  .header { display: flex; align-items: center; padding: 20px; }
+  .header h2 { margin: 0; font-size: 18px; margin-left: 20px; font-weight: 600; }
+  
+  .title-section { padding: 10px 20px; }
+  .title-section h1 { margin: 0; font-size: 22px; color: #111; font-weight: 700; }
+  .title-section p { margin: 5px 0 15px 0; color: #666; font-size: 14px; }
+
+  /* Color List */
+  .list-container { padding: 0 20px; }
+  .list-item { padding: 12px 15px; border: 1.5px solid #eee; border-radius: 12px; margin-bottom: 10px; cursor: pointer; display: flex; align-items: center; transition: 0.2s; }
+  .list-item.selected { border-color: #006b44; background: #f2fcf7; }
+  
+  .color-preview { width: 35px; height: 35px; border-radius: 8px; margin-right: 15px; border: 1px solid #ddd; }
+  .item-details { flex-grow: 1; }
+  .item-details h4 { margin: 0; font-size: 14px; color: #111; font-weight: 600; }
+  .item-details p { margin: 2px 0 0 0; font-size: 13px; color: #444; }
+  
+  .radio-circle { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #ccc; display: flex; justify-content: center; align-items: center; }
+  .list-item.selected .radio-circle { border-color: #006b44; background: #006b44; }
+  .list-item.selected .radio-circle::after { content: '✓'; color: white; font-size: 14px; font-weight: bold; }
+
+  .bottom-bar { position: fixed; bottom: 0; width: 100%; max-width: 414px; background: #fff; padding: 15px 20px; box-sizing: border-box; display: flex; gap: 15px; border-top: 1px solid #eee; }
+  .btn-next { background: #006b44; color: white; border: none; padding: 16px; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; display: flex; justify-content: space-between; align-items: center; }
+</style>
+</head>
+<body>
+<div class="app-container">
+  <div class="header">
+    <a href="coverproducts.html" style="font-size: 20px;text-decoration:none;color:inherit;">&#8592;</a><h2>Find Your Product</h2>
+  </div>
+
+  <div class="title-section">
+    <h1>Choose your favourite look</h1>
+    <p id="colorSub">Pick the photo you like best.</p>
+  </div>
+
+  <div class="list-container" id="colorList">
+    <p style="color:#666;font-size:13px;">Loading…</p>
+  </div>
+
+  <div class="bottom-bar">
+    <button class="btn-next" id="nextBtn"><span>Next</span> <span>&rarr;</span></button>
+  </div>
+</div>
+
+<script type="module">
+  import { db } from "./firebase.js";
+  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+  const productId = sessionStorage.getItem("cover_product_id");
+  if (!productId) window.location.href = "coverproducts.html";
+
+  let images = [];
+  let productName = "";
+  let selectedIndex = 0;
+
+  function render() {
+    const list = document.getElementById("colorList");
+    list.innerHTML = images.map((img, i) => `
+      <div class="list-item ${i === selectedIndex ? "selected" : ""}" data-index="${i}">
+        <img class="color-preview" src="${img}" style="object-fit:cover;">
+        <div class="item-details">
+          <p>${productName}</p>
+          <h4>Look ${i + 1}</h4>
+        </div>
+        <div class="radio-circle"></div>
+      </div>
+    `).join("");
+  }
+
+  async function load() {
+    try {
+      const snap = await getDoc(doc(db, "products", productId));
+      if (!snap.exists()) {
+        alert("This product is no longer available.");
+        window.location.href = "coverproducts.html";
+        return;
+      }
+      const data = snap.data();
+      productName = data.productName || "Product";
+      images = Array.isArray(data.images) && data.images.length ? data.images : [data.image].filter(Boolean);
+
+      if (images.length <= 1) {
+        // Nothing to choose between — skip straight to checkout.
+        goToCheckout();
+        return;
+      }
+
+      render();
+    } catch (error) {
+      console.error(error);
+      goToCheckout();
+    }
+  }
+  load();
+
+  document.getElementById("colorList").addEventListener("click", (e) => {
+    const item = e.target.closest(".list-item");
+    if (!item) return;
+    selectedIndex = Number(item.dataset.index);
+    render();
+  });
+
+  function goToCheckout() {
+    const params = new URLSearchParams({ productId, qty: "1" });
+    if (images[selectedIndex]) {
+      // Not a real named colour — just which photo they preferred.
+      params.set("colour", `Look ${selectedIndex + 1}`);
+    }
+    window.location.href = `covercheckout.html?${params.toString()}`;
+  }
+
+  document.getElementById("nextBtn").addEventListener("click", goToCheckout);
+</script>
+</body>
+</html>
