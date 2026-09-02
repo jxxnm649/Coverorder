@@ -21,20 +21,33 @@
   .title-section h1 { margin: 0; font-size: 20px; color: #111; font-weight: 700; }
   .title-section p { margin: 3px 0 0 0; color: #666; font-size: 13px; }
 
-  /* Product Cards List */
+  /* Product Cards — vertical detail-card style */
   .product-list { padding: 0 20px; }
-  .product-card { display: flex; align-items: center; padding: 12px; border: 1px solid #eee; border-radius: 12px; margin-bottom: 12px; background: #fff; position: relative; }
-  .product-img { width: 60px; height: 60px; background: #eee; border-radius: 8px; margin-right: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
-  .product-details { flex-grow: 1; }
-  .product-details h4 { margin: 0; font-size: 14px; color: #111; font-weight: 600; }
-  .product-details p { margin: 2px 0 6px 0; font-size: 12px; color: #666; }
-  .price-row { display: flex; align-items: center; gap: 8px; }
-  .current-price { font-size: 15px; font-weight: bold; color: #111; }
-  .old-price { font-size: 12px; color: #999; text-decoration: line-through; }
-  .discount { font-size: 10px; background: #e6f4ea; color: #006b44; padding: 2px 5px; border-radius: 4px; font-weight: bold; }
-  
-  .btn-order { background: #006b44; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; margin-top: 5px; display: inline-block; }
-  .fav-icon { position: absolute; top: 12px; right: 12px; font-size: 16px; color: #ccc; cursor: pointer; }
+  .product-card { border: 1px solid #eee; border-radius: 14px; margin-bottom: 18px; background: #fff; position: relative; overflow: hidden; }
+  .product-img { width: 100%; height: 210px; object-fit: cover; background: #f0f0f0; display: block; }
+  .product-details { padding: 14px; }
+  .product-details h4 { margin: 0; font-size: 16px; color: #111; font-weight: 700; }
+  .product-details p { margin: 2px 0 8px 0; font-size: 12px; color: #666; }
+  .price-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .current-price { font-size: 18px; font-weight: bold; color: #111; }
+  .old-price { font-size: 13px; color: #999; text-decoration: line-through; }
+  .discount { font-size: 11px; background: #e6f4ea; color: #006b44; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+
+  .swatch-label { font-size: 13px; font-weight: 700; color: #111; margin: 0 0 8px; }
+  .swatch-row { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .swatch { width: 52px; height: 52px; border-radius: 10px; border: 2px solid #eee; overflow: hidden; cursor: pointer; position: relative; }
+  .swatch img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .swatch.selected { border-color: #006b44; }
+  .swatch.selected::after { content: '✓'; position: absolute; top: 2px; right: 2px; background: #006b44; color: #fff; width: 16px; height: 16px; border-radius: 50%; font-size: 10px; display: flex; align-items: center; justify-content: center; }
+
+  .qty-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .qty-label { font-size: 13px; font-weight: 700; color: #111; }
+  .qty-stepper { display: flex; align-items: center; border: 1.5px solid #006b44; border-radius: 8px; overflow: hidden; }
+  .qty-btn { background: #fff; border: none; color: #006b44; width: 34px; height: 34px; font-size: 18px; font-weight: bold; cursor: pointer; }
+  .qty-value { width: 34px; text-align: center; font-size: 14px; font-weight: 700; color: #111; }
+
+  .btn-order { background: #006b44; color: white; border: none; padding: 13px; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; width: 100%; }
+  .fav-icon { position: absolute; top: 12px; right: 12px; font-size: 18px; color: #fff; cursor: pointer; text-shadow: 0 1px 3px rgba(0,0,0,.4); z-index: 2; }
 
   .bottom-bar { position: fixed; bottom: 0; width: 100%; max-width: 414px; background: #fff; padding: 15px 20px; box-sizing: border-box; border-top: 1px solid #eee; }
   .btn-next { background: #006b44; color: white; border: none; padding: 16px; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; text-align: center; }
@@ -156,14 +169,26 @@
     listEl.innerHTML = matched.map(p => {
       const hasDiscount = p.mrp && Number(p.mrp) > Number(p.price);
       const offPct = hasDiscount ? Math.round((1 - Number(p.price) / Number(p.mrp)) * 100) : 0;
+      const images = Array.isArray(p.images) && p.images.length ? p.images : [p.image].filter(Boolean);
+
+      const swatchRow = images.length > 1
+        ? `
+          <div class="swatch-label">Pick a look</div>
+          <div class="swatch-row" data-swatch-for="${p.id}">
+            ${images.map((img, i) => `
+              <div class="swatch ${i === 0 ? "selected" : ""}" data-index="${i}">
+                <img src="${escapeHtml(img)}">
+              </div>
+            `).join("")}
+          </div>
+        `
+        : "";
 
       return `
-        <div class="product-card">
+        <div class="product-card" data-id="${p.id}" data-selected-index="0">
           <div class="fav-icon">&#9825;</div>
-          ${p.image
-            ? `<img src="${escapeHtml(p.image)}" class="product-img" style="object-fit:cover;">`
-            : `<div class="product-img">🛡️</div>`
-          }
+          <img src="${escapeHtml(images[0] || "")}" class="product-img" data-main-img>
+
           <div class="product-details">
             <h4>${escapeHtml(p.productName || "Product")}</h4>
             <p>For ${escapeHtml(phoneLabel)}</p>
@@ -171,6 +196,18 @@
               <span class="current-price">₹${p.price ?? 0}</span>
               ${hasDiscount ? `<span class="old-price">₹${p.mrp}</span><span class="discount">${offPct}% OFF</span>` : ""}
             </div>
+
+            ${swatchRow}
+
+            <div class="qty-row">
+              <span class="qty-label">Quantity</span>
+              <div class="qty-stepper">
+                <button type="button" class="qty-btn qty-minus">&minus;</button>
+                <span class="qty-value">1</span>
+                <button type="button" class="qty-btn qty-plus">+</button>
+              </div>
+            </div>
+
             <button class="btn-order" data-id="${p.id}">Place Order Now</button>
           </div>
         </div>
@@ -180,10 +217,43 @@
   load();
 
   document.getElementById("productList").addEventListener("click", (e) => {
+
+    // Swatch tap — swap the hero image + remember which look was picked.
+    const swatch = e.target.closest(".swatch");
+    if (swatch) {
+      const card = swatch.closest(".product-card");
+      card.dataset.selectedIndex = swatch.dataset.index;
+      card.querySelectorAll(".swatch").forEach(s => s.classList.remove("selected"));
+      swatch.classList.add("selected");
+      card.querySelector("[data-main-img]").src = swatch.querySelector("img").src;
+      return;
+    }
+
+    // Quantity stepper
+    const qtyBtn = e.target.closest(".qty-btn");
+    if (qtyBtn) {
+      const valueEl = qtyBtn.parentElement.querySelector(".qty-value");
+      let qty = Number(valueEl.textContent);
+      if (qtyBtn.classList.contains("qty-plus")) qty = Math.min(qty + 1, 10);
+      if (qtyBtn.classList.contains("qty-minus")) qty = Math.max(qty - 1, 1);
+      valueEl.textContent = qty;
+      return;
+    }
+
+    // Place Order Now
     const btn = e.target.closest(".btn-order");
-    if (!btn) return;
-    sessionStorage.setItem("cover_product_id", btn.dataset.id);
-    window.location.href = "covercolor.html";
+    if (btn) {
+      const card = btn.closest(".product-card");
+      const qty = Number(card.querySelector(".qty-value").textContent) || 1;
+      const selectedIndex = Number(card.dataset.selectedIndex) || 0;
+
+      const params = new URLSearchParams({ productId: btn.dataset.id, qty: String(qty) });
+      const swatchImgs = card.querySelectorAll(".swatch");
+      if (swatchImgs.length) {
+        params.set("colour", `Look ${selectedIndex + 1}`);
+      }
+      window.location.href = `covercheckout.html?${params.toString()}`;
+    }
   });
 </script>
 </body>
